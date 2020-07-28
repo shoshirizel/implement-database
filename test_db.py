@@ -6,6 +6,7 @@ from typing import Generator
 
 import pytest
 
+
 from db import DataBase
 from db_api import DBField, SelectionCriteria, DB_ROOT, DBTable
 
@@ -42,9 +43,9 @@ def add_student(table: DBTable, index: int, **kwargs) -> None:
         ID=1_000_000 + index,
         First=f'John{index}',
         Last=f'Doe{index}',
-        Birthday=dt.datetime(2000, 2, 1) + dt.timedelta(days=index)
+        # Birthday=dt.datetime(2000, 2, 1) + dt.timedelta(days=index)
     )
-    info.update(**kwargs)
+    # info.update(**kwargs)
     table.insert_record(info)
 
 
@@ -64,9 +65,9 @@ def backup_db() -> Generator[Path, None, None]:
 
 def test_reload_from_backup(backup_db: Path) -> None:
     """This test requires preparing the backup by calling create_db_backup()"""
-    delete_files(DB_ROOT)
-    for path in backup_db.iterdir():
-        (DB_ROOT / path.name).write_bytes(path.read_bytes())
+    # delete_files(DB_ROOT)
+    # for path in backup_db.iterdir():
+    #     (DB_ROOT / path.name).write_bytes(path.read_bytes())
     db = DataBase()
     assert db.num_tables() == 1
     assert db.get_tables_names() == ['Students']
@@ -145,3 +146,5 @@ def test_performance(new_db: DataBase) -> None:
 def test_bad_key(new_db: DataBase) -> None:
     with pytest.raises(ValueError):
         _ = new_db.create_table('Students', STUDENT_FIELDS, 'BAD_KEY')
+
+
