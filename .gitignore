@@ -1,0 +1,5 @@
+.pytest_cache/
+db_files/
+db_files_backup/
+__pycache__/
+LICENSE

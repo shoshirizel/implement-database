@@ -5,9 +5,9 @@ import shutil
 from typing import Any, Dict, List
 
 import db_api
-from pathlib import Path
-
 import record
+import files
+from pathlib import Path
 
 DB_ROOT = Path('db_files')
 
@@ -19,8 +19,7 @@ class DBTable(db_api.DBTable):
         self.key_field_name = key_field_name
 
         if meta_data is None:
-            with open(f"{DB_ROOT}/{self.name}/meta_data.json") as the_file:
-                meta_data = json.load(the_file)
+            meta_data = files.load(f"{DB_ROOT}/{self.name}/meta_data.json")
 
         self.meta_data = meta_data
 
@@ -28,96 +27,75 @@ class DBTable(db_api.DBTable):
         return self.meta_data["count"]
 
     def insert_record(self, values: Dict[str, Any]) -> None:
-        with open(f"{DB_ROOT}/{self.name}/{self.meta_data['files_num']}.json", "r") as the_file:
-            data = json.load(the_file)
-
-        with open(f"{DB_ROOT}/{self.name}/{self.meta_data['key']}_index.json", "r") as the_file:
-            index = json.load(the_file)
+        path = f"{DB_ROOT}/{self.name}"
+        data = files.load(f"{path}/{self.meta_data['files_num']}.json")
+        index = files.load(f"{path}/{self.meta_data['key']}_index.json")
 
         if index.get(str(values[self.meta_data["key"]])) is not None:
             raise ValueError()
 
         if len(data.keys()) >= 1000:
-            with (DB_ROOT / f"{self.name}/ {self.meta_data['files_num'] + 1}.json").open() as the_file:
-                json.dump({values[self.meta_data["key"]]: values}, the_file)
-            self.meta_data['files_num'] += 1
+            files.dump({values[self.meta_data["key"]]: values}, f"{path}/ {self.meta_data['files_num'] + 1}.json")
         else:
-            with open(f"{DB_ROOT}/{self.name}/{self.meta_data['files_num']}.json", "r") as the_file:
-                data = json.load(the_file)
-            with open(f"{DB_ROOT}/{self.name}/{self.meta_data['files_num']}.json", "w") as the_file:
-                data[values[self.meta_data["key"]]] = values
-                json.dump(data, the_file)
+            data[values[self.meta_data["key"]]] = values
+            files.dump(data, f"{path}/{self.meta_data['files_num']}.json")
 
         record.add(index, values[self.meta_data["key"]], self.meta_data['files_num'])
-        with open(f"{DB_ROOT}/{self.name}/{self.meta_data['key']}_index.json", "w") as the_file:
-            json.dump(index, the_file)
+        files.dump(index, f"{path}/{self.meta_data['key']}_index.json")
 
         self.meta_data["count"] += 1
-        with open(f"{DB_ROOT}/{self.name}/meta_data.json", "w") as the_file:
-            json.dump(self.meta_data, the_file)
+        files.dump(self.meta_data, f"{path}/meta_data.json")
 
     def delete_record(self, key: Any) -> None:
-        with open(f"{DB_ROOT}/{self.name}/{self.meta_data['key']}_index.json", "r") as the_file:
-            index = json.load(the_file)
+        path = f"{DB_ROOT}/{self.name}"
+        index = files.load(f"{path}/{self.meta_data['key']}_index.json")
 
         if (index.get(str(key)) is None) or len(index[str(key)]) == 0:
             raise ValueError()
 
-        with open(f"{DB_ROOT}/{self.name}/{index[str(key)][0]}.json", "r") as the_file:
-            data = json.load(the_file)
-
-        with open(f"{DB_ROOT}/{self.name}/{index[str(key)]}.json", "w") as the_file:
-            data.pop(str(key))
-            json.dump(data, the_file)
-
+        data = files.load(f"{path}/{index[str(key)][0]}.json")
+        data.pop(str(key))
+        files.dump(data, f"{path}/{index[str(key)]}.json")
         self.meta_data["count"] -= 1
-
-        with open(f"{DB_ROOT}/{self.name}/meta_data.json", "w") as meta_data_file:
-            json.dump(self.meta_data, meta_data_file)
-
-        with open(f"{DB_ROOT}/{self.name}/{self.meta_data['key']}_index.json", "w") as the_file:
-            index.pop(str(key))
-            json.dump(index, the_file)
+        files.dump(self.meta_data, f"{path}/meta_data.json")
+        index.pop(str(key))
+        files.dump(index, f"{path}/{self.meta_data['key']}_index.json")
 
     def delete_records(self, criteria: List[db_api.SelectionCriteria]) -> None:
+        path = f"{DB_ROOT}/{self.name}"
         for i in range(1, self.meta_data['files_num'] + 1):
-            with open(f"{DB_ROOT}/{self.name}/{i}.json", "r") as the_file:
-                data = json.load(the_file)
+            data = files.load(f"{path}/{i}.json")
 
             for k in data.keys():
                 if record.check(data[k], criteria):
                     self.delete_record(k)
 
     def update_record(self, key: Any, values: Dict[str, Any]) -> None:
-        with open(f"{DB_ROOT}/{self.name}/meta_data.json") as the_file:
-            meta_data = json.load(the_file)
+        path = f"{DB_ROOT}/{self.name}"
+        meta_data = files.load(f"{path}/meta_data.json")
 
         i = record.search_index(f"{DB_ROOT}/{self.name}/{meta_data['key']}_index.json", key)[0]
-        with open(f"{DB_ROOT}/{self.name}/{i}.json", "r") as the_file:
-            data = json.load(the_file)
+        data = files.load(f"{path}/{i}.json")
 
-        with open(f"{DB_ROOT}/{self.name}/{i}.json", "w") as the_file:
-            for k in values.keys():
-                data[str(key)][k] = values[k]
-            json.dump(data, the_file)
+        for k in values.keys():
+            data[str(key)][k] = values[k]
+        files.dump(data, f"{path}/{i}.json")
 
     def get_record(self, key: Any) -> Dict[str, Any]:
-        with open(f"{DB_ROOT}/{self.name}/meta_data.json") as the_file:
-            meta_data = json.load(the_file)
-        i = record.search_index(f"{DB_ROOT}/{self.name}/{meta_data['key']}_index.json", key)[0]
-
-        with open(f"{DB_ROOT}/{self.name}/{i}.json", "r") as the_file:
-            data = json.load(the_file)
+        path = f"{DB_ROOT}/{self.name}"
+        meta_data = files.load(f"{path}/meta_data.json")
+        i = record.search_index(f"{path}/{meta_data['key']}_index.json", key)[0]
+        data = files.load(f"{path}/{i}.json")
 
         return data.get(str(key))
 
     def query_table(self, criteria: List[db_api.SelectionCriteria]) \
             -> List[Dict[str, Any]]:
+        path = f"{DB_ROOT}/{self.name}"
         res = {}
 
         for i in range(1, self.meta_data['files_num'] + 1):
-            with open(f"{DB_ROOT}/{self.name}/{i}.json", "r") as the_file:
-                data = json.load(the_file)
+            data = files.load(f"{path}/{i}.json")
             for k in data.keys():
                 if record.check(data[k], criteria):
                     res[k] = data[k]
@@ -125,14 +103,13 @@ class DBTable(db_api.DBTable):
         return res
 
     def create_index(self, field_to_index: str) -> None:
-        with (DB_ROOT / f"{self.name}/{field_to_index}_index.json").open("w") as index_file:
-            index = {}
-            for i in range(1, self.meta_data['files_num'] + 1):
-                with open(f"{DB_ROOT}/{self.name}/{i}.json", "r") as the_file:
-                    data = json.load(the_file)
-                for k in data.keys():
-                    record.add(index, data[k][field_to_index], i)
-            json.dump(index, index_file)
+        path = f"{DB_ROOT}/{self.name}"
+        index = {}
+        for i in range(1, self.meta_data['files_num'] + 1):
+            data = files.load(f"{path}/{i}.json")
+            for k in data.keys():
+                record.add(index, data[k][field_to_index], i)
+        files.dump(index, f"{path}/{field_to_index}_index.json")
 
 
 class DataBase(db_api.DataBase):
@@ -150,8 +127,7 @@ class DataBase(db_api.DataBase):
         with (DB_ROOT / f"{table_name}/meta_data.json").open("w") as the_file:
             json.dump(meta_data, the_file)
 
-        with open(f"{DB_ROOT}/{table_name}/1.json", "w") as the_file:
-            json.dump({}, the_file)
+        files.dump({}, f"{DB_ROOT}/{table_name}/1.json")
 
         table = DBTable(table_name, fields, key_field_name, meta_data)
         table.create_index(key_field_name)
@@ -161,11 +137,8 @@ class DataBase(db_api.DataBase):
         return len(os.listdir(DB_ROOT))
 
     def get_table(self, table_name: str) -> DBTable:
-        with open(f"{DB_ROOT}/{table_name}/meta_data.json") as the_file:
-            meta_data = json.load(the_file)
-
+        meta_data = files.load(f"{DB_ROOT}/{table_name}/meta_data.json")
         fields = [db_api.DBField(name, str) for name in meta_data["must"]]
-
         return DBTable(table_name, fields, meta_data["key"], meta_data)
 
     def delete_table(self, table_name: str) -> None:
