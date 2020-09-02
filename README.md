@@ -14,13 +14,6 @@ Also you can create a hash index ro improve the run time.
 
 ## Getting Started
 
-
-
-### Dependencies
-
-* Describe any prerequisites, libraries, OS version, etc., needed before installing program.
-* ex. Windows 10
-
 ### Installing
 
 * In requirements.txt file you can see what to install.
