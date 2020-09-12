@@ -9,13 +9,15 @@ Involving run-time and I/O bound optimizations.
 ## Description
 
 This is an implemention of a non relation DataBase,
-You can create a collection and do some actions on it.
-Also you can create a hash index ro improve the run time.
+The database supports creating and deleting tables.
+Inserting deleting,updating and selecting records from an existing table.
+also retrieve data from a table according to some criterions. (by query)
+and creating an index to a specific field.
 
 ## Getting Started
 
 ### Installing
-
+* python 3.8
 * In requirements.txt file you can see what to install.
 * You need to create a db_files directory to store your data.
 
